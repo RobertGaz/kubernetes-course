@@ -1,0 +1,98 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: my
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: resource-db-service
+  namespace: my
+spec:
+  ports:
+    - port: 5432
+      targetPort: 5432
+  clusterIP: None
+  selector:
+    app: resource-db
+
+---
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: resource-db-configmap
+  namespace: my
+data:
+  init-script.sql: |
+    create table if not exists song_binaries (
+    id serial primary key,
+    song_binary bytea
+    );
+
+---
+
+apiVersion: v1
+kind: Secret
+metadata:
+  name: resource-db-secret
+  namespace: my
+type: Opaque
+data:
+  db_username: c29uZ3NfdXNlcg==
+  db_password: c29uZ3NfcGFzc3dvcmQ=
+
+---
+
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: resource-db-statefulset
+  namespace: my
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: resource-db
+  template:
+    metadata:
+      labels:
+        app: resource-db
+    spec:
+      containers:
+        - name: resource-db-container
+          image: postgres:16-alpine
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_DB
+              value: resources
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: resource-db-secret
+                  key: db_username
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: resource-db-secret
+                  key: db_password
+          volumeMounts:
+            - name: resource-db-data
+              mountPath: /var/lib/postgresql/data
+            - name: resource-db-init-scripts
+              mountPath: /docker-entrypoint-initdb.d/
+      volumes:
+        - name: resource-db-init-scripts
+          configMap:
+            name: resource-db-configmap
+  volumeClaimTemplates:
+    - metadata:
+        name: resource-db-data
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        resources:
+          requests:
+            storage: 200Mi

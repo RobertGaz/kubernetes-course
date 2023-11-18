@@ -1,0 +1,95 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: song-db-service
+  namespace: my
+spec:
+  ports:
+    - port: 5432
+      targetPort: 5432
+  clusterIP: None
+  selector:
+    app: song-db
+
+---
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: song-db-configmap
+  namespace: my
+data:
+  init-script.sql: |
+    create table if not exists song_metadata (
+    id serial primary key,
+    title varchar(50),
+    artist varchar(50),
+    album varchar(50),
+    duration varchar(50),
+    resource_id varchar(50)
+    );
+
+---
+
+apiVersion: v1
+kind: Secret
+metadata:
+  name: song-db-secret
+  namespace: my
+type: Opaque
+data:
+  db_username: c29uZ3NfdXNlcg==
+  db_password: c29uZ3NfcGFzc3dvcmQ=
+
+---
+
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: song-db-statefulset
+  namespace: my
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: song-db
+  template:
+    metadata:
+      labels:
+        app: song-db
+    spec:
+      containers:
+        - name: song-db-container
+          image: postgres:16-alpine
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_DB
+              value: songs
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: song-db-secret
+                  key: db_username
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: song-db-secret
+                  key: db_password
+          volumeMounts:
+            - name: song-db-data
+              mountPath: /var/lib/postgresql/data
+            - name: song-db-init-scripts
+              mountPath: /docker-entrypoint-initdb.d/
+      volumes:
+        - name: song-db-init-scripts
+          configMap:
+            name: song-db-configmap
+  volumeClaimTemplates:
+    - metadata:
+        name: song-db-data
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        resources:
+          requests:
+            storage: 200Mi

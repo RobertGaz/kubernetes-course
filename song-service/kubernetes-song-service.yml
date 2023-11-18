@@ -1,0 +1,115 @@
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: song-service-configmap
+  namespace: my
+data:
+  db_url: song-db-service.my.svc.cluster.local:5432
+
+---
+
+apiVersion: v1
+kind: Secret
+metadata:
+  name: song-service-secret
+  namespace: my
+type: Opaque
+data:
+  db_username: c29uZ3NfdXNlcg==
+  db_password: c29uZ3NfcGFzc3dvcmQ=
+
+---
+
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: song-service-persistent-volume
+spec:
+  storageClassName: manual
+  capacity:
+    storage: 100Mi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "/song-service-mount/data"
+
+---
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: song-service-persistent-volume-claim
+  namespace: my
+spec:
+  storageClassName: manual
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 50Mi
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: song-service-deployment
+  namespace: my
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: song-service
+  template:
+    metadata:
+      labels:
+        app: song-service
+    spec:
+      containers:
+        - name: song-service-container
+          image: robertgaz/song-service:latest
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: kubernetes-run
+            - name: DB_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: song-service-configmap
+                  key: db_url
+            - name: DB_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: song-service-secret
+                  key: db_username
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: song-service-secret
+                  key: db_password
+          ports:
+            - containerPort: 8080
+          volumeMounts:
+            - name: song-service-data
+              mountPath: /data
+      volumes:
+        - name: song-service-data
+          persistentVolumeClaim:
+            claimName: song-service-persistent-volume-claim
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: song-service
+  namespace: my
+spec:
+  selector:
+    app: song-service
+  type: NodePort
+  ports:
+    - protocol: TCP
+      port: 8080
+      targetPort: 8080
+      nodePort: 31002
