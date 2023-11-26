@@ -5,7 +5,7 @@ metadata:
   name: song-service-configmap
   namespace: my
 data:
-  db_url: song-db-service.my.svc.cluster.local:5432
+  db_url: song-db-service:5432
 
 ---
 
@@ -28,7 +28,7 @@ metadata:
 spec:
   storageClassName: manual
   capacity:
-    storage: 100Mi
+    storage: 50Mi
   accessModes:
     - ReadWriteOnce
   hostPath:
@@ -57,7 +57,7 @@ metadata:
   name: song-service-deployment
   namespace: my
 spec:
-  replicas: 1
+  replicas: 2
   selector:
     matchLabels:
       app: song-service
