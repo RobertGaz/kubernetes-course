@@ -51,6 +51,7 @@ public class SongMetadataService {
                 tableObject.getArtist(),
                 tableObject.getAlbum(),
                 tableObject.getDuration(),
+                "rock",
                 tableObject.getResourceId()
         );
 

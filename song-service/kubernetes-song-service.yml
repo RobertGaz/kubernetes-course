@@ -61,6 +61,10 @@ spec:
   selector:
     matchLabels:
       app: song-service
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
   template:
     metadata:
       labels:
@@ -68,7 +72,7 @@ spec:
     spec:
       containers:
         - name: song-service-container
-          image: robertgaz/song-service:latest
+          image: robertgaz/song-service:2.0.0
           env:
             - name: SPRING_PROFILES_ACTIVE
               value: kubernetes-run
@@ -92,6 +96,24 @@ spec:
           volumeMounts:
             - name: song-service-data
               mountPath: /data
+          startupProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8080
+            failureThreshold: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /readiness
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 5
       volumes:
         - name: song-service-data
           persistentVolumeClaim:

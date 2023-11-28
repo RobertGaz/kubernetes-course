@@ -21,7 +21,7 @@ public class SongMetadataSender {
 
     public void sendMetadata(SongMetadata songMetadata) {
         LOGGER.info("REQUEST TO " + songServiceUrl + "/songs");
-        ResponseEntity<IdResponse> responseEntity= restTemplate.postForEntity(songServiceUrl + "/songs", songMetadata, IdResponse.class);
+        ResponseEntity<IdResponse> responseEntity = restTemplate.postForEntity(songServiceUrl + "/songs", songMetadata, IdResponse.class);
         LOGGER.info("Sent metadata to song service, received metadata id: {}", responseEntity.getBody().getId());
     }
 }

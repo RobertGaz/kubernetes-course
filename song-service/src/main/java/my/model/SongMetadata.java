@@ -5,13 +5,15 @@ public class SongMetadata {
     private String artist;
     private String album;
     private String duration;
+    private String genre;
     private int resourceId;
 
-    public SongMetadata(String title, String artist, String album, String duration, int resourceId) {
+    public SongMetadata(String title, String artist, String album, String duration, String genre, int resourceId) {
         this.title = title;
         this.artist = artist;
         this.album = album;
         this.duration = duration;
+        this.genre = genre;
         this.resourceId = resourceId;
     }
 
@@ -58,6 +60,14 @@ public class SongMetadata {
         this.resourceId = resourceId;
     }
 
+    public String getGenre() {
+        return genre;
+    }
+
+    public void setGenre(String genre) {
+        this.genre = genre;
+    }
+
     @Override
     public String toString() {
         return "SongMetadata{" +
@@ -65,6 +75,7 @@ public class SongMetadata {
                 ", artist='" + artist + '\'' +
                 ", album='" + album + '\'' +
                 ", duration='" + duration + '\'' +
+                ", genre='" + genre + '\'' +
                 ", resourceId=" + resourceId +
                 '}';
     }

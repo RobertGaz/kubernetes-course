@@ -69,6 +69,24 @@ spec:
               mountPath: /var/lib/postgresql/data
             - name: resource-db-init-scripts
               mountPath: /docker-entrypoint-initdb.d/
+          startupProbe:
+            exec:
+              command:
+                - pg_isready
+            failureThreshold: 10
+            periodSeconds: 10
+          livenessProbe:
+            exec:
+              command:
+                - pg_isready
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          readinessProbe:
+            exec:
+              command:
+                - pg_isready
+            initialDelaySeconds: 15
+            periodSeconds: 5
       volumes:
         - name: resource-db-init-scripts
           configMap:
