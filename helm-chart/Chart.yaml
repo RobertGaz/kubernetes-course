@@ -1,0 +1,4 @@
+apiVersion: v2
+name: songs-application
+version: 1.0.0
+description: My songs application

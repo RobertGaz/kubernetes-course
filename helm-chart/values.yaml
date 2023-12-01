@@ -1,0 +1,7 @@
+namespace_name: my
+
+replica_count:
+  resource_service_pod: 2
+  resource_db_pod: 1
+  song_service_pod: 2
+  song_db_pod: 1

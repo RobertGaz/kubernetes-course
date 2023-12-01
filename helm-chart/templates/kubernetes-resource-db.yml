@@ -1,0 +1,121 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ .Values.namespace_name }}
+
+---
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: resource-db-configmap
+  namespace: {{ .Values.namespace_name }}
+  {{- template "mychart.config_map_labels" . }}
+data:
+  db_name: resources
+  init-script.sql: |
+    create table if not exists song_binaries (
+    id serial primary key,
+    song_binary bytea
+    );
+
+---
+
+apiVersion: v1
+kind: Secret
+metadata:
+  name: resource-db-secret
+  namespace: {{.Values.namespace_name}}
+type: Opaque
+data:
+  db_username: c29uZ3NfdXNlcg==
+  db_password: c29uZ3NfcGFzc3dvcmQ=
+
+---
+
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: resource-db-statefulset
+  namespace: {{ .Values.namespace_name }}
+spec:
+  replicas: {{ .Values.replica_count.resource_db_pod }}
+  selector:
+    matchLabels:
+      app: resource-db
+  template:
+    metadata:
+      labels:
+        app: resource-db
+    spec:
+      containers:
+        - name: resource-db-container
+          image: postgres:16-alpine
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_DB
+              valueFrom:
+                configMapKeyRef:
+                  name: resource-db-configmap
+                  key: db_name
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: resource-db-secret
+                  key: db_username
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: resource-db-secret
+                  key: db_password
+          volumeMounts:
+            - name: resource-db-data
+              mountPath: /var/lib/postgresql/data
+            - name: resource-db-init-scripts
+              mountPath: /docker-entrypoint-initdb.d/
+          startupProbe:
+            exec:
+              command:
+                - pg_isready
+            failureThreshold: 10
+            periodSeconds: 10
+          livenessProbe:
+            exec:
+              command:
+                - pg_isready
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          readinessProbe:
+            exec:
+              command:
+                - pg_isready
+            initialDelaySeconds: 15
+            periodSeconds: 5
+      volumes:
+        - name: resource-db-init-scripts
+          configMap:
+            name: resource-db-configmap
+  volumeClaimTemplates:
+    - metadata:
+        name: resource-db-data
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        resources:
+          requests:
+            storage: 200Mi
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: resource-db-service
+  namespace: {{.Values.namespace_name}}
+spec:
+  ports:
+    - port: 5432
+      targetPort: 5432
+  clusterIP: None
+  selector:
+    app: resource-db

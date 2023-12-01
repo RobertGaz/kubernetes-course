@@ -1,0 +1,139 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: resource-service-configmap
+  namespace: {{ .Values.namespace_name }}
+  {{- template "mychart.config_map_labels" . }}
+data:
+  db_url: resource-db-service:5432
+  song_service_url: song-service:8080
+
+---
+
+apiVersion: v1
+kind: Secret
+metadata:
+  name: resource-service-secret
+  namespace: {{ .Values.namespace_name }}
+type: Opaque
+data:
+  db_username: c29uZ3NfdXNlcg==
+  db_password: c29uZ3NfcGFzc3dvcmQ=
+
+---
+
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: resource-service-persistent-volume
+spec:
+  storageClassName: manual
+  capacity:
+    storage: 50Mi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "/resource-service-mount/data"
+
+---
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: resource-service-persistent-volume-claim
+  namespace: {{ .Values.namespace_name }}
+spec:
+  storageClassName: manual
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 50Mi
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: resource-service-deployment
+  namespace: {{ .Values.namespace_name }}
+spec:
+  replicas: {{ .Values.replica_count.resource_service_pod }}
+  selector:
+    matchLabels:
+      app: resource-service
+  template:
+    metadata:
+      labels:
+        app: resource-service
+    spec:
+      containers:
+        - name: resource-service-container
+          image: robertgaz/resource-service:latest
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: kubernetes-run
+            - name: DB_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: resource-service-configmap
+                  key: db_url
+            - name: SONG_SERVICE_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: resource-service-configmap
+                  key: song_service_url
+            - name: DB_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: resource-service-secret
+                  key: db_username
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: resource-service-secret
+                  key: db_password
+          ports:
+            - containerPort: 8080
+          volumeMounts:
+            - name: resource-service-data
+              mountPath: /data
+          startupProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8080
+            failureThreshold: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /readiness
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 5
+      volumes:
+        - name: resource-service-data
+          persistentVolumeClaim:
+            claimName: resource-service-persistent-volume-claim
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: resource-service
+  namespace: {{ .Values.namespace_name }}
+spec:
+  selector:
+    app: resource-service
+  type: NodePort
+  ports:
+    - protocol: TCP
+      port: 8080
+      targetPort: 8080
+      nodePort: 31001
